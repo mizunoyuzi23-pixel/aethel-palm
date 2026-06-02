@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and summary",
+      "type": "object",
+      "properties": {
+        "summary": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat interaction",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role", "content"]
+    },
+    "Reading": {
+      "title": "Reading",
+      "description": "Tarot reading result",
+      "type": "object",
+      "properties": {
+        "interpretation": { "type": "string" },
+        "cards": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["interpretation", "cards"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile data"
+    },
+    "users/{userId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat history"
+    },
+    "users/{userId}/readings/{readingId}": {
+      "schema": "Reading",
+      "description": "Tarot readings history"
+    }
+  }
+}

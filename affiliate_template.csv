@@ -1,0 +1,5 @@
+id,category,title,description,url,ctaText,imageUrl,keywords
+career_1,career,星の転機：キャリア相談,あなたの才能を最も活かせる場所を探してみませんか？新たな門出をサポートするサイトです。,https://example.com/career-link,新たな可能性を見る,https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=800,"仕事,転職,キャリア,就職,才能,ビジネス"
+love_1,love,響き合う魂の出会い,星が結ぶのは運命だけではありません。新しい一歩を踏み出すための出会いの場をご紹介します。,https://example.com/dating-link,運命を探す,https://images.unsplash.com/photo-1511113211533-3a13769136e0?auto=format&fit=crop&q=80&w=800,"恋愛,結婚,出会い,恋,片思い,復縁"
+wellness_1,wellness,心と体を癒やす星の雫,日々の疲れを癒やし、魂の輝きを取り戻すためのアイテムをご提案します。,https://example.com/wellness-link,詳しく見る,https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=800,"健康,癒やし,体,美容,リラックス,サプリ"
+premium_1,general,真実の道：プレミアム鑑定,より深く、個人的な星の導きを求める方へ。専門家による詳細な鑑定をご依頼いただけます。,https://example.com/premium-divination,詳細な鑑定を依頼する,,"占い,鑑定,詳細,悩み,解決"

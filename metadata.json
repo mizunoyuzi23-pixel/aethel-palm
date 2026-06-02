@@ -1,0 +1,6 @@
+{
+  "name": "Cosmic Palmistry: Aethel",
+  "description": "AI palmistry interpreting the 'Star Map of Life' etched in your palm. Aethel translates your destiny into a celestial melody.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
