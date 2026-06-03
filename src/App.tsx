@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Moon, Stars, History } from 'lucide-react';
-import { Interaction, TarotCard, ReadingResult, Language, PalmAnalysis } from './types';
-import { getOracleResponse, getOracleResponseStream, interpretReading, detectPalmLines, reInterpretPalmWithCoordinates } from './services/geminiService';
+import { Interaction, TarotCard, ReadingResult, Language } from './types';
+import { getOracleResponse, getOracleResponseStream, interpretReading, validatePalm } from './services/geminiService';
 import { memoryService } from './services/memoryService';
 import { AFFILIATE_OFFERS, AffiliateOffer } from './constants/affiliates';
 import AIPortrait from './components/AIPortrait';
@@ -99,7 +99,7 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [selectedCards, setSelectedCards] = useState<TarotCard[]>([]);
   const [readingResult, setReadingResult] = useState<string | null>(null);
-  const [palmLines, setPalmLines] = useState<PalmAnalysis | null>(null);
+  const [palmHandType, setPalmHandType] = useState<'left' | 'right' | null>(null);
   const [featuredOffer, setFeaturedOffer] = useState<AffiliateOffer | null>(null);
   const [userProfile, setUserProfile] = useState(memoryService.getProfile());
   const [palmImage, setPalmImage] = useState<string | null>(null);
@@ -212,10 +212,11 @@ export default function App() {
    }
   };
 
-  const handleStartReading = async (capturedImage?: string) => {
+  const handleStartReading = async (capturedImage: string, handType: 'left' | 'right') => {
+    setPalmImage(capturedImage);
+    setPalmHandType(handType);
+
     // Select an offer based on chat context
-    const imageToUse = capturedImage || palmImage;
-    
     // We target only the last 4 to 6 messages of user utterances
     const userUtterances = messages.filter(m => m.role === 'user');
     const last6UserMsgs = userUtterances.slice(-6);
@@ -242,7 +243,7 @@ export default function App() {
         love: 0,
         finance: 0,
         wellness: 0,
-        general: 0
+        fortune: 0
       };
       
       last6UserMsgs.forEach(msg => {
@@ -279,31 +280,51 @@ export default function App() {
     
     // 3. Fallback to random specific offer if no match found (including finance category in the pool)
     if (!selected) {
-      const specificOffers = AFFILIATE_OFFERS.filter(o => o.category !== 'general');
+      const specificOffers = AFFILIATE_OFFERS.filter(o => o.category !== 'fortune');
       selected = specificOffers[Math.floor(Math.random() * specificOffers.length)];
     }
     
     setFeaturedOffer(selected);
     setState('interpreting');
     
-    // Parallel fetch for interpretation and line detection
-    const userStory = messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
-    
     // Track scanning progress for better UX
     setReadingResult(language === 'en' ? "Calibrating the celestial alignment... Please hold." : "星の並びを調整しています... そのままお待ちください。");
 
-    const [interpretation, lines] = await Promise.all([
-      interpretReading(
-        userStory, 
-        [], 
-        userProfile.summary, 
-        imageToUse || undefined,
-        language
-      ),
-      imageToUse ? detectPalmLines(imageToUse) : Promise.resolve(null)
-    ]);
+    // Palm quality validation!
+    const validation = await validatePalm(capturedImage);
+    if (!validation || !validation.valid) {
+      // Return to chat with Ether's message
+      const cancelMsg = language === 'en'
+        ? "The cosmic alignment cannot trace your palm...\nPlease spread your hand fully to fill the camera frame and try again."
+        : "星の導きが読み取れないようです…\n手のひらをカメラいっぱいに広げて、もう一度試してみてください。";
+      
+      const assistantCancelMsg: Interaction = { role: 'assistant', content: cancelMsg, timestamp: Date.now() };
+      
+      setMessages(prev => {
+        const list = [...prev];
+        // Remove empty placeholder loading assistant message if any
+        if (list.length > 0 && list[list.length - 1].role === 'assistant' && !list[list.length - 1].content) {
+          list[list.length - 1] = assistantCancelMsg;
+        } else {
+          list.push(assistantCancelMsg);
+        }
+        return list;
+      });
+      memoryService.addInteraction(assistantCancelMsg);
+      setState('chat');
+      return;
+    }
+
+    const userStory = messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
     
-    setPalmLines(lines);
+    const interpretation = await interpretReading(
+      userStory, 
+      [], 
+      userProfile.summary, 
+      capturedImage,
+      handType,
+      language
+    );
     
     if (!interpretation) {
       const errorMsg = language === 'en' 
@@ -318,40 +339,11 @@ export default function App() {
     setState('result');
   };
 
-  const handleReDiagnose = async (finalAnalysis: PalmAnalysis) => {
-    setState('interpreting');
-    setReadingResult(language === 'en' ? "Re-aligning celestial geometric vectors... Please hold." : "星位幾何学ベクトルを再構成しています... そのままお待ちください。");
-    
-    const userStory = messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
-    
-    const interpretation = await reInterpretPalmWithCoordinates(
-      userStory,
-      finalAnalysis,
-      palmImage,
-      language,
-      userProfile.summary
-    );
-    
-    setPalmLines(finalAnalysis);
-    
-    if (!interpretation) {
-      const errorMsg = language === 'en' 
-        ? "I am sorry, but the cosmic mists are too thick. Please try re-diagnosing in a moment."
-        : "申し訳ありません、星の霧が深く再診断を行うことができませんでした。少し時間を置いてお試しください。";
-      setReadingResult(errorMsg);
-    } else {
-      setReadingResult(interpretation);
-      const summary = `Cosmic Insight on ${new Date().toLocaleDateString()}: ${interpretation.slice(0, 200)}...`;
-      memoryService.updateSummary(summary);
-    }
-    setState('result');
-  };
-
   const handleReset = () => {
     setState('chat');
     setSelectedCards([]);
     setReadingResult(null);
-    setPalmLines(null);
+    setPalmHandType(null);
     setFeaturedOffer(null);
     setPalmImage(null);
   };
@@ -503,6 +495,30 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="w-full pointer-events-auto flex flex-col items-center"
               >
+                {/* Celestial Quick Suggestion Chips */}
+                <div className="flex flex-wrap md:flex-nowrap justify-center gap-2 max-w-full overflow-x-auto scrollbar-none px-4 mb-4">
+                  {(language === 'en' ? [
+                    { text: "💼 Career change & suitable jobs", value: "Please read my fortune regarding career changes or what jobs are suitable for me." },
+                    { text: "🏢 Tell Aether my current job", value: "I want to share my current occupation/profession to see what the stars say about my professional path." },
+                    { text: "🔮 Discover my celestial talents", value: "Could you read the palm lines that indicate my greatest strengths and inner talents?" },
+                    { text: "❤️ Love & wealth alignment", value: "What do the stars reveal about my alignment in love or monetary wealth?" },
+                  ] : [
+                    { text: "💼 転職相談・適職について占う", value: "転職の運勢や、私に向いている適職について占ってください。" },
+                    { text: "🏢 現在のお仕事・職業を伝える", value: "現在の私の職業についてお話しして、今後の仕事のゆくえを聞きたいです。" },
+                    { text: "🔮 自分の隠れた才能・強みを知る", value: "私の掌から、まだ見ぬ強みや、天から授かった才能を解き明かしてください。" },
+                    { text: "❤️ 恋愛や金運を占う", value: "仕事だけでなく、私の恋愛や金運についてのアライメントも教えてください。" },
+                  ]).map((chip, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(chip.value)}
+                      disabled={isLoading}
+                      className="px-4 py-2 rounded-full border border-mystic-gold/20 bg-black/50 hover:bg-mystic-gold/15 hover:border-mystic-gold/50 cursor-pointer text-[11px] font-medium text-purple-200 transition-all duration-300 pointer-events-auto whitespace-nowrap backdrop-blur-md disabled:opacity-50 disabled:pointer-events-none active:scale-95 shadow-[0_4px_12px_rgba(0,0,0,0.3)] hover:shadow-[0_0_15px_rgba(212,175,55,0.2)]"
+                    >
+                      {chip.text}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="w-full mb-4 md:mb-8">
                   <MinimalInput 
                     onSendMessage={handleSendMessage} 
@@ -542,9 +558,8 @@ export default function App() {
                 className="w-full flex justify-center py-8"
               >
                 <PalmCamera 
-                  onCapture={(image) => {
-                    setPalmImage(image);
-                    handleStartReading(image);
+                  onCapture={(image, handType) => {
+                    handleStartReading(image, handType);
                   }}
                   onCancel={() => setState('chat')}
                   language={language}
@@ -622,9 +637,8 @@ export default function App() {
                   onReset={handleReset}
                   featuredOffer={featuredOffer}
                   palmImage={palmImage}
-                  palmLines={palmLines}
+                  palmHandType={palmHandType}
                   language={language}
-                  onReDiagnose={handleReDiagnose}
                 />
               </motion.div>
             )}

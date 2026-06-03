@@ -157,19 +157,18 @@ async function startServer() {
     }
   });
 
-  app.post("/api/palm-lines", async (req, res) => {
+  app.post("/api/validate-palm", async (req, res) => {
     try {
       const { palmImage } = req.body;
       if (!palmImage) return res.status(400).json({ error: "No image provided" });
 
       const prompt = `
-        You are an advanced, high-precision palmistry computer vision engine.
-        Analyze the provided palm image:
-        1. Scan the image to identify if it is a Left or Right hand (palm facing the camera).
-           - LEFT Hand: The thumb is on the RIGHT side of the image (pointing rightwards), index finger is next to it, and the pinky is on the LEFT side of the image.
-           - RIGHT Hand: The thumb is on the LEFT side of the image (pointing leftwards), index finger is next to it, and the pinky is on the RIGHT side of the image.
-           Return either "left" or "right" in the "handType" field.
-        2. Assign a confidence value between 0.0 and 1.0 depending on the clarity of the palm in the image.
+        Analyze the provided image of a palm. Determine if the image meets the following criteria for palmistry analysis:
+        1. An actual human palm is clearly visible in the image.
+        2. The palm occupies approx 50% or more of the total image area.
+        3. The image is in focus, sufficiently clear, and not excessively dark or extremely blurry.
+
+        Your output MUST be a strict JSON response.
       `;
 
       const result = await ai.models.generateContent({
@@ -188,16 +187,16 @@ async function startServer() {
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              handType: {
-                type: Type.STRING,
-                description: "Must be exactly 'left' or 'right' depending on the detected hand anatomy."
+              valid: {
+                type: Type.BOOLEAN,
+                description: "True if all three conditions are perfectly met. False otherwise."
               },
-              confidence: {
-                type: Type.NUMBER,
-                description: "Confidence value between 0.0 and 1.0 depending on palm clarity."
+              reason: {
+                type: Type.STRING,
+                description: "An explanation in Japanese of why it is hand/detection failure if valid is false."
               }
             },
-            required: ["handType", "confidence"]
+            required: ["valid", "reason"]
           },
           temperature: 0.1,
         }
@@ -205,8 +204,8 @@ async function startServer() {
 
       res.json(JSON.parse(result.text));
     } catch (error: any) {
-      console.error("Gemini Line Detection Error:", error);
-      res.status(500).json({ error: error.message || "Line detection failed." });
+      console.error("Gemini Palm Validation Error:", error);
+      res.status(500).json({ error: error.message || "Palm validation failed in the cosmos." });
     }
   });
 

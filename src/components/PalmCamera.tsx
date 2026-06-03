@@ -5,7 +5,7 @@ import { Language } from '../types';
 import { TRANSLATIONS } from '../lib/i18n';
 
 interface PalmCameraProps {
-  onCapture: (image: string) => void;
+  onCapture: (image: string, handType: 'left' | 'right') => void;
   onCancel: () => void;
   language: Language;
 }
@@ -87,12 +87,6 @@ export const PalmCamera = ({ onCapture, onCancel, language }: PalmCameraProps) =
         const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
         setCapturedImage(dataUrl);
       }
-    }
-  };
-
-  const handleConfirm = () => {
-    if (capturedImage) {
-      onCapture(capturedImage);
     }
   };
 
@@ -205,28 +199,53 @@ export const PalmCamera = ({ onCapture, onCancel, language }: PalmCameraProps) =
             </AnimatePresence>
           </>
         ) : (
-          <div className="relative w-full h-full">
-            <img src={capturedImage} className="w-full h-full object-cover" alt="Captured palm" />
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center space-y-8">
-              <p className="text-white text-sm font-serif tracking-widest animate-pulse">
-                {t.camera.capturing}
-              </p>
-              <div className="flex space-x-12">
+          <div className="relative w-full h-full flex flex-col justify-between p-6">
+            <img src={capturedImage} className="absolute inset-0 w-full h-full object-cover" alt="Captured palm" />
+            
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+            
+            <div className="relative z-10 w-full text-center pt-4">
+              <span className="text-[10px] text-mystic-gold uppercase tracking-[0.3em] font-bold">
+                {language === 'ja' ? '星図の選択' : 'Choose Your Hand'}
+              </span>
+              <h3 className="text-lg font-serif text-white tracking-widest mt-1">
+                {language === 'ja' ? 'どちらの手を鑑定しますか？' : 'Which hand shall we read?'}
+              </h3>
+            </div>
+
+            <div className="relative z-10 w-full space-y-3 pb-2">
+              <div className="grid grid-cols-1 gap-2.5 w-full">
                 <button 
-                  onClick={handleRetake}
-                  className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors group"
-                  title={t.camera.retake}
+                  onClick={() => onCapture(capturedImage, 'right')}
+                  className="w-full flex flex-col items-center justify-center py-3.5 px-5 bg-slate-950/90 hover:bg-mystic-purple/90 border border-mystic-gold/30 hover:border-mystic-gold text-white rounded-2xl active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)] group/btn"
                 >
-                  <RefreshCw className="text-white group-hover:rotate-180 transition-transform duration-500" size={28} />
+                  <span className="text-sm font-bold text-mystic-gold group-hover/btn:text-white transition-colors">
+                    {language === 'ja' ? '👉 右手（後天運・現在の運勢）' : '👉 Right Hand (Acquired Destiny)'}
+                  </span>
+                  <span className="text-[10px] text-white/50 group-hover/btn:text-white/80 mt-0.5">
+                    {language === 'ja' ? 'これまでの歩み、現在の強さ、切り拓く未来' : 'Active choices, current energy, and forging future'}
+                  </span>
                 </button>
+
                 <button 
-                  onClick={handleConfirm}
-                  className="w-16 h-16 rounded-full bg-mystic-gold flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.6)] hover:scale-110 active:scale-95 transition-transform"
-                  title={t.camera.confirm}
+                  onClick={() => onCapture(capturedImage, 'left')}
+                  className="w-full flex flex-col items-center justify-center py-3.5 px-5 bg-slate-950/90 hover:bg-mystic-purple/90 border border-mystic-gold/30 hover:border-mystic-gold text-white rounded-2xl active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)] group/btn"
                 >
-                  <Check className="text-black" size={32} />
+                  <span className="text-sm font-bold text-mystic-gold group-hover/btn:text-white transition-colors">
+                    {language === 'ja' ? '👈 左手（先天運・生まれ持った運命）' : '👈 Left Hand (Innate Destiny)'}
+                  </span>
+                  <span className="text-[10px] text-white/50 group-hover/btn:text-white/80 mt-0.5">
+                    {language === 'ja' ? '潜在能力、魂の本質、生まれ持った宿命蓝図' : 'Core talents, natural blueprint, and inherent potential'}
+                  </span>
                 </button>
               </div>
+
+              <button 
+                onClick={handleRetake}
+                className="w-full py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-xl transition duration-300"
+              >
+                {language === 'ja' ? '📸 もう一度撮影する' : '📸 Take Another Photo'}
+              </button>
             </div>
           </div>
         )}
